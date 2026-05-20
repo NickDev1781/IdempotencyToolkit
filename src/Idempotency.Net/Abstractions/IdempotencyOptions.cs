@@ -5,4 +5,8 @@ public sealed class IdempotencyOptions
     public string HeaderName { get; set; } = "X-Idempotency-Key";
 
     public TimeSpan Expiration { get; set; } = TimeSpan.FromHours(24);
+
+    public TimeSpan LockTimeout { get; set; } = TimeSpan.FromSeconds(5);
+
+    public TimeSpan LockExpiry { get; set; } = TimeSpan.FromSeconds(10);
 }

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 using Idempotency.Net.Abstractions;
@@ -5,9 +6,11 @@ using Idempotency.Net.Services;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Diagnostics;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 
 namespace Idempotency.Net.AspNetCore;
 
@@ -37,15 +40,44 @@ public sealed class IdempotentAttribute : Attribute, IAsyncActionFilter
             return;
         }
 
-        ActionExecutedContext executedContext = await next().ConfigureAwait(false);
-        if (executedContext.Exception is not null && !executedContext.ExceptionHandled)
-            return;
 
-        IdempotencyRecord? resultToPersist = ToRecord(key, executedContext.Result, options);
-        if (resultToPersist is null)
-            return;
+        IConnectionMultiplexer mux = requestServices.GetRequiredService<IConnectionMultiplexer>();
+        IDatabase db = mux.GetDatabase();
+        string lockKey = "lock:" + key;
+        string lockToken = Guid.NewGuid().ToString();
 
-        await service.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
+        bool lockAcquired = await db.LockTakeAsync(lockKey, lockToken, options.LockExpiry);
+        if (!lockAcquired)
+        {
+            context.Result = new StatusCodeResult(423);
+            return;
+        }
+
+        try
+        {
+            cached = await service.GetAsync(key, cancellationToken).ConfigureAwait(false);
+            if (cached is not null)
+            {
+                context.Result = ToMvcResult(cached);
+                return;
+            }
+
+            ActionExecutedContext executedContext = await next().ConfigureAwait(false);
+            if (executedContext.Exception is not null && !executedContext.ExceptionHandled)
+                return;
+
+            IdempotencyRecord? resultToPersist = ToRecord(key, executedContext.Result, options);
+            if (resultToPersist is null)
+                return;
+
+            await service.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
+        }
+
+        finally
+        {
+            await db.LockReleaseAsync(lockKey, lockToken);
+        }
+
     }
 
     private static bool TryGetIdempotencyKey(HttpContext httpContext, IdempotencyOptions options, out string key)

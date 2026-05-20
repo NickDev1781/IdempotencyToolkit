@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 
 namespace Idempotency.Net.AspNetCore.Extensions;
 
@@ -31,13 +32,35 @@ public static class RouteHandlerBuilderExtensions
             if (cached is not null)
                 return new CachedIdempotencyResult(cached);
 
-            object? result = await next(context).ConfigureAwait(false);
-            IdempotencyRecord? resultToPersist = ToRecord(key, result, options);
+            var mux = requestServices.GetRequiredService<IConnectionMultiplexer>();
+            var db = mux.GetDatabase();
+            var lockKey = "lock: " + key;
+            var lockToken = Guid.NewGuid().ToString();
 
-            if (resultToPersist is not null)
-                await service.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
+            bool lockAcquired = await db.LockTakeAsync(lockKey, lockToken, options.LockExpiry);
+            if (!lockAcquired) 
+            {
+                return Results.StatusCode(423);
+            }
 
-            return result;
+            try
+            {
+                cached = await service.GetAsync(key, cancellationToken).ConfigureAwait(false);
+                if (cached is not null) return new CachedIdempotencyResult(cached);
+
+                object? result = await next(context).ConfigureAwait(false);
+                IdempotencyRecord? resultToPersist = ToRecord(key, result, options);
+
+                if (resultToPersist is not null)
+                    await service.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
+
+                return result;
+            }
+            finally
+            {
+                await db.LockReleaseAsync(lockKey, lockToken);
+            }
+
         });
 
         return builder;
