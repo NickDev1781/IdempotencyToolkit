@@ -11,7 +11,7 @@ public static class InMemoryIdempotencyBuilderExtensions
     {
         builder.Services.AddSingleton<InMemoryIdempotencyStore>();
         builder.Services.AddSingleton<IdempotencyStore>(sp => sp.GetRequiredService<InMemoryIdempotencyStore>());
-        builder.Services.TryAddScoped<IIdempotencyLock, InMemoryIdempotencyLock>();
+        builder.Services.AddSingleton<IIdempotencyLock, InMemoryIdempotencyLock>();
         return builder;
     }
 }

@@ -8,7 +8,7 @@ using System.Text;
 
 namespace Idempotency.Net.PostgreSql
 {
-    public class PostgreSqlIdempotencyLock: IIdempotencyLock
+    public class PostgreSqlIdempotencyLock : IIdempotencyLock, IAsyncDisposable
     {
         private readonly PostgreSqlIdempotencyOptions _options;
 
@@ -72,6 +72,30 @@ namespace Idempotency.Net.PostgreSql
             finally
             {
                 await entry.Connection.CloseAsync().ConfigureAwait(false);
+            }
+        }
+        public async ValueTask DisposeAsync()
+        {
+            var keys = _locks.Keys.ToArray();
+            foreach (var key in keys)
+            {
+                (NpgsqlConnection Connection, NpgsqlTransaction Transaction) entry;
+                lock (_locks)
+                {
+                    if (!_locks.Remove(key, out entry))
+                        continue;
+                }
+
+                try
+                {
+                    await entry.Transaction.RollbackAsync().ConfigureAwait(false);
+                }
+                catch { }
+                try
+                {
+                    await entry.Connection.CloseAsync().ConfigureAwait(false);
+                }
+                catch { }
             }
         }
     }
