@@ -8,8 +8,17 @@ using StackExchange.Redis;
 
 namespace Idempotency.Net.Redis;
 
+/// <summary>
+/// Extension methods for configuring Redis-based idempotency.
+/// </summary>
 public static class RedisIdempotencyBuilderExtensions
 {
+    /// <summary>
+    /// Configures the idempotency library to use Redis as the storage and locking provider.
+    /// </summary>
+    /// <param name="builder">The <see cref="IdempotencyBuilder"/>.</param>
+    /// <param name="configure">Optional delegate to configure <see cref="RedisIdempotencyOptions"/>.</param>
+    /// <returns>The builder for chaining.</returns>
     public static IdempotencyBuilder UseRedis(
         this IdempotencyBuilder builder,
         Action<RedisIdempotencyOptions>? configure = null)

@@ -1,5 +1,4 @@
 using Idempotency.Net.Abstractions;
-using Idempotency.Net.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Diagnostics;
@@ -12,6 +11,10 @@ using System.Text.Json;
 
 namespace Idempotency.Net.AspNetCore;
 
+/// <summary>
+/// ASP.NET Core action filter that makes a controller action idempotent by checking and storing idempotency keys.
+/// Requires an <see cref="IIdempotencyLock"/> and an <see cref="IdempotencyStore"/> to be registered in DI.
+/// </summary>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
 public sealed class IdempotentAttribute : Attribute, IAsyncActionFilter
 {
@@ -28,10 +31,10 @@ public sealed class IdempotentAttribute : Attribute, IAsyncActionFilter
             return;
         }
 
-        IdempotencyService service = requestServices.GetRequiredService<IdempotencyService>();
+        IdempotencyStore store = requestServices.GetRequiredService<IdempotencyStore>();
         CancellationToken cancellationToken = context.HttpContext.RequestAborted;
 
-        IdempotencyRecord? cached = await service.GetAsync(key, cancellationToken).ConfigureAwait(false);
+        IdempotencyRecord? cached = await store.GetAsync(key, cancellationToken).ConfigureAwait(false);
         if (cached is not null)
         {
             context.Result = ToMvcResult(cached);
@@ -48,7 +51,7 @@ public sealed class IdempotentAttribute : Attribute, IAsyncActionFilter
 
         try
         {
-            cached = await service.GetAsync(key, cancellationToken).ConfigureAwait(false);
+            cached = await store.GetAsync(key, cancellationToken).ConfigureAwait(false);
             if (cached is not null)
             {
                 context.Result = ToMvcResult(cached);
@@ -61,7 +64,7 @@ public sealed class IdempotentAttribute : Attribute, IAsyncActionFilter
 
             IdempotencyRecord? resultToPersist = ToRecord(key, executedContext.Result, options);
             if (resultToPersist is not null)
-                await service.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
+                await store.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
 
             if (resultToPersist is null && executedContext.Result is not FileResult)
             {

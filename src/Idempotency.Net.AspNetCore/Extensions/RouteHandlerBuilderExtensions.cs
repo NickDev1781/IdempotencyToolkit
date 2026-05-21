@@ -1,7 +1,6 @@
 using System.Text.Json;
 
 using Idempotency.Net.Abstractions;
-using Idempotency.Net.Services;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -10,10 +9,18 @@ using Microsoft.Extensions.Options;
 
 namespace Idempotency.Net.AspNetCore.Extensions;
 
+/// <summary>
+/// Extension methods for adding idempotency to Minimal API endpoints.
+/// </summary>
 public static class RouteHandlerBuilderExtensions
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// Adds idempotency support to a Minimal API endpoint.
+    /// </summary>
+    /// <param name="builder">The <see cref="RouteHandlerBuilder"/>.</param>
+    /// <returns>The builder for chaining.</returns>
     public static RouteHandlerBuilder WithIdempotency(this RouteHandlerBuilder builder)
     {
         builder.AddEndpointFilter(async (context, next) =>
@@ -24,10 +31,10 @@ public static class RouteHandlerBuilderExtensions
             if (!TryGetIdempotencyKey(context.HttpContext, options, out var key))
                 return await next(context).ConfigureAwait(false);
 
-            IdempotencyService service = requestServices.GetRequiredService<IdempotencyService>();
+            IdempotencyStore store = requestServices.GetRequiredService<IdempotencyStore>();
             CancellationToken cancellationToken = context.HttpContext.RequestAborted;
 
-            IdempotencyRecord? cached = await service.GetAsync(key, cancellationToken).ConfigureAwait(false);
+            IdempotencyRecord? cached = await store.GetAsync(key, cancellationToken).ConfigureAwait(false);
             if (cached is not null)
                 return new CachedIdempotencyResult(cached);
 
@@ -38,7 +45,7 @@ public static class RouteHandlerBuilderExtensions
 
             try
             {
-                cached = await service.GetAsync(key, cancellationToken).ConfigureAwait(false);
+                cached = await store.GetAsync(key, cancellationToken).ConfigureAwait(false);
                 if (cached is not null)
                     return new CachedIdempotencyResult(cached);
 
@@ -46,7 +53,7 @@ public static class RouteHandlerBuilderExtensions
 
                 IdempotencyRecord? resultToPersist = ToRecord(key, result, options);
                 if (resultToPersist is not null)
-                    await service.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
+                    await store.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
 
                 return result;
             }

@@ -8,8 +8,17 @@ using Npgsql;
 
 namespace Idempotency.Net.PostgreSql;
 
+/// <summary>
+/// Extension methods for configuring PostgreSQL-based idempotency.
+/// </summary>
 public static class PostgreSqlIdempotencyBuilderExtensions
 {
+    /// <summary>
+    /// Configures the idempotency library to use PostgreSQL as the storage and locking provider.
+    /// </summary>
+    /// <param name="builder">The <see cref="IdempotencyBuilder"/>.</param>
+    /// <param name="configure">Optional delegate to configure <see cref="PostgreSqlIdempotencyOptions"/>.</param>
+    /// <returns>The builder for chaining.</returns>
     public static IdempotencyBuilder UsePostgreSql(
         this IdempotencyBuilder builder,
         Action<PostgreSqlIdempotencyOptions>? configure = null)
