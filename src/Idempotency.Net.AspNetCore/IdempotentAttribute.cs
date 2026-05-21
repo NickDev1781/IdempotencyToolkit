@@ -1,15 +1,14 @@
-using System.Runtime.InteropServices;
-using System.Text.Json;
-
 using Idempotency.Net.Abstractions;
 using Idempotency.Net.Services;
-
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Diagnostics;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Runtime.InteropServices;
+using System.Text.Json;
 
 namespace Idempotency.Net.AspNetCore;
 
@@ -63,6 +62,13 @@ public sealed class IdempotentAttribute : Attribute, IAsyncActionFilter
             IdempotencyRecord? resultToPersist = ToRecord(key, executedContext.Result, options);
             if (resultToPersist is not null)
                 await service.SaveAsync(resultToPersist, cancellationToken).ConfigureAwait(false);
+
+            if (resultToPersist is null && executedContext.Result is not FileResult)
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<IdempotentAttribute>>();
+                logger.LogWarning("Idempotent record not created for action result of type {ResultType}.", executedContext.Result?.GetType());
+            }
+
         }
         finally
         {
