@@ -6,7 +6,7 @@
 		<Nullable>enable</Nullable>
 
 		<!-- NuGet metadata -->
-		<PackageId>Idempotency.Net.PostgreSql</PackageId>
+		<PackageId>IdempotencyToolkit.PostgreSql</PackageId>
 		<Version>1.0.0</Version>
 		<Authors>NickDev1781</Authors>
 		<Description>PostgreSQL storage provider for Idempotency.Net.</Description>

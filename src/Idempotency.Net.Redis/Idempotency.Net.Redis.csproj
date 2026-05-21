@@ -6,7 +6,7 @@
 		<Nullable>enable</Nullable>
 
 		<!-- NuGet metadata -->
-		<PackageId>Idempotency.Net.Redis</PackageId>
+		<PackageId>IdempotencyToolkit.Redis</PackageId>
 		<Version>1.0.0</Version>
 		<Authors>NickDev1781</Authors>
 		<Description>Redis storage provider for Idempotency.Net.</Description>
