@@ -17,4 +17,6 @@ public sealed class RedisIdempotencyOptions
     public TimeSpan SyncTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
     public bool AbortOnConnectFail { get; set; }
+
+    public TimeSpan LockExpiry { get; set; } = TimeSpan.FromSeconds(10);
 }

@@ -26,33 +26,26 @@ public sealed class RedisIdempotentFilterConcurrencyTests : IClassFixture<RedisC
 
         await using var provider = BuildProvider(database, keyPrefix);
         var store = provider.GetRequiredService<IdempotencyStore>();
-        var mux = provider.GetRequiredService<IConnectionMultiplexer>();
+        var lockProvider = provider.GetRequiredService<IIdempotencyLock>();
 
         int executionCount = 0;
 
         async Task HandleRequest()
         {
-           
             var cached = await store.GetAsync(requestKey);
             if (cached is not null) return;
 
-            
-            var db = mux.GetDatabase();
-            var lockKey = "lock:" + requestKey;
-            var lockToken = Guid.NewGuid().ToString();
-            bool acquired = await db.LockTakeAsync(lockKey, lockToken, TimeSpan.FromSeconds(10));
+            bool acquired = await lockProvider.AcquireAsync(requestKey);
             if (!acquired)
             {
                 await Task.Delay(100);
-                return; 
+                return;
             }
 
             try
             {
-
                 cached = await store.GetAsync(requestKey);
                 if (cached is not null) return;
-
 
                 Interlocked.Increment(ref executionCount);
                 var record = new IdempotencyRecord
@@ -68,16 +61,14 @@ public sealed class RedisIdempotentFilterConcurrencyTests : IClassFixture<RedisC
             }
             finally
             {
-                await db.LockReleaseAsync(lockKey, lockToken);
+                await lockProvider.ReleaseAsync(requestKey);
             }
         }
 
-        // Act 
         var tasks = Enumerable.Range(0, 10).Select(_ => Task.Run(HandleRequest));
         await Task.WhenAll(tasks);
 
-        // Assert
-        Assert.Equal(1, executionCount); 
+        Assert.Equal(1, executionCount);
     }
 
     private ServiceProvider BuildProvider(int database, string keyPrefix)

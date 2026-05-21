@@ -1,5 +1,6 @@
 ﻿using Idempotency.Net.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
@@ -15,10 +16,10 @@ namespace Idempotency.Net.Redis
 
         private readonly Dictionary<string, string> _lockTokens = new();
 
-        public RedisIdempotencyLock(IConnectionMultiplexer connection, RedisIdempotencyOptions options)
+        public RedisIdempotencyLock(IConnectionMultiplexer connection, IOptions<RedisIdempotencyOptions> options)
         {
             _connection = connection;
-            _options = options;
+            _options = options.Value;
         }
 
         public async Task<bool> AcquireAsync(string key, CancellationToken cancellation = default)
@@ -27,7 +28,7 @@ namespace Idempotency.Net.Redis
             var lockKey = "lock:" + key;
             var lockToken = Guid.NewGuid().ToString();
 
-            bool acquired = await db.LockTakeAsync(lockKey, lockToken, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            bool acquired = await db.LockTakeAsync(lockKey, lockToken, _options.LockExpiry).ConfigureAwait(false);
             if (acquired)
             {
                 lock (_lockTokens)
@@ -49,7 +50,7 @@ namespace Idempotency.Net.Redis
             if (lockToken is not null)
             {
                 var db = _connection.GetDatabase(_options.Database);
-                var lockKey = "lock: " + key;
+                var lockKey = "lock:" + key;
                 await db.LockReleaseAsync(lockKey, lockToken).ConfigureAwait(false);
             }
         }

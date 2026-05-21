@@ -124,17 +124,12 @@ public static class RouteHandlerBuilderExtensions
             };
         }
 
-        return result is IResult
-            ? null
-            : new IdempotencyRecord
-            {
-                Key = key,
-                StatusCode = StatusCodes.Status200OK,
-                ResponseBody = JsonSerializer.Serialize(result, SerializerOptions),
-                ContentType = "application/json; charset=utf-8",
-                CreatedAt = createdAt,
-                ExpiresAt = expiresAt,
-            };
+        if (result is IResult)
+        {
+            int statusCode = (result as IStatusCodeHttpResult)?.StatusCode ?? StatusCodes.Status200OK;
+            return new IdempotencyRecord { Key = key, StatusCode = statusCode, CreatedAt = createdAt, ExpiresAt = expiresAt };
+        }
+        return null;
     }
 
     private sealed class CachedIdempotencyResult : IResult
