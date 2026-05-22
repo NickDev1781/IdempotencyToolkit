@@ -35,7 +35,19 @@ dotnet add package IdempotencyToolkit.Redis
 dotnet add package IdempotencyToolkit.PostgreSql
 ```
 
+> 💡 You never need to install `IdempotencyToolkit` directly.
+
 ### 2. Register in `Program.cs`
+
+Make sure to add the required `using` directives at the top of your file:
+
+```csharp
+using Idempotency.Net.Extensions;           // for AddIdempotency
+using Idempotency.Net.AspNetCore.Extensions; // for WithIdempotency
+// Choose one of the following based on your storage:
+using Idempotency.Net.Redis;                // for UseRedis
+// using Idempotency.Net.PostgreSql;        // for UsePostgreSql
+```
 
 **Redis:**
 ```csharp
