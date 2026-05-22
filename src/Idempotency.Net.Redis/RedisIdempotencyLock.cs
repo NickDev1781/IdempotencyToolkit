@@ -25,7 +25,7 @@ namespace Idempotency.Net.Redis
         public async Task<bool> AcquireAsync(string key, CancellationToken cancellation = default)
         {
             var db = _connection.GetDatabase(_options.Database);
-            var lockKey = "lock:" + key;
+            var lockKey = BuildLockKey(key);
             var lockToken = Guid.NewGuid().ToString();
 
             bool acquired = await db.LockTakeAsync(lockKey, lockToken, _options.LockExpiry).ConfigureAwait(false);
@@ -50,9 +50,17 @@ namespace Idempotency.Net.Redis
             if (lockToken is not null)
             {
                 var db = _connection.GetDatabase(_options.Database);
-                var lockKey = "lock:" + key;
+                var lockKey = BuildLockKey(key);
                 await db.LockReleaseAsync(lockKey, lockToken).ConfigureAwait(false);
             }
+        }
+
+        private string BuildLockKey(string key)
+        {
+            string prefix = string.IsNullOrWhiteSpace(_options.InstanceName)
+                ? _options.KeyPrefix
+                : $"{_options.InstanceName}:{_options.KeyPrefix}";
+            return $"{prefix}lock:{key}";
         }
     }
 }

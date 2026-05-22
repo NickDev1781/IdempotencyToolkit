@@ -7,12 +7,12 @@
 
 		<!-- NuGet metadata -->
 		<PackageId>IdempotencyToolkit</PackageId>
-		<Version>1.0.0</Version>
+		<Version>1.0.1</Version>
 		<Authors>NickDev1781</Authors>
-		<Description>A lightweight idempotency library for ASP.NET Core with built-in distributed locking and pluggable storage (Redis, PostgreSQL, In-Memory).</Description>
+		<Description>Core abstractions and In-Memory provider for IdempotencyToolkit. Usually installed automatically; do not install directly.</Description>
 		<PackageTags>aspnetcore;idempotency;redis;postgresql;distributed-lock</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<RepositoryUrl>https://github.com/NickDev1781/Idempotency.Net</RepositoryUrl>
+		<RepositoryUrl>https://github.com/NickDev1781/IdempotencyToolkit</RepositoryUrl>
 	</PropertyGroup>
 
 	<ItemGroup>

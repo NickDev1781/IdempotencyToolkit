@@ -30,6 +30,14 @@ public static class RouteHandlerBuilderExtensions
             if (!TryGetIdempotencyKey(context.HttpContext, options, out var key))
                 return await next(context).ConfigureAwait(false);
 
+            if (key.Length > 256)
+            {
+                var loggerFactory = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>();
+                var logger = loggerFactory.CreateLogger("Idempotency.Net.AspNetCore.MinimalApi");
+                logger.LogWarning("Idempotency key exceeds maximum length of 256 characters");
+                return Results.BadRequest("Idempotency key exceeds maximum length of 256 characters");
+            }
+
             IdempotencyStore store = requestServices.GetRequiredService<IdempotencyStore>();
             CancellationToken cancellationToken = context.HttpContext.RequestAborted;
 

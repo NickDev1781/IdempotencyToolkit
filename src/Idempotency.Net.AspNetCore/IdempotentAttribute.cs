@@ -31,6 +31,14 @@ public sealed class IdempotentAttribute : Attribute, IAsyncActionFilter
             return;
         }
 
+        if (key.Length > 256)
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<IdempotentAttribute>>();
+            logger.LogWarning("Idempotency key exceeds maximum length of 256 characters");
+            context.Result = new BadRequestObjectResult("Idempotency key exceeds maximum length of 256 characters");
+            return;
+        }
+
         IdempotencyStore store = requestServices.GetRequiredService<IdempotencyStore>();
         CancellationToken cancellationToken = context.HttpContext.RequestAborted;
 
